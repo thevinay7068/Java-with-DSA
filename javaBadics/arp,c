@@ -1,0 +1,65 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <sys/socket.h>
+#include <sys/ioctl.h>
+#include <netinet/in.h>
+#include <netinet/ip.h>
+#include <netinet/if_ether.h>
+#include <arpa/inet.h>
+#include <net/if.h>
+
+// Function to resolve MAC address using ARP
+void arp_resolve(const char *ip_address, const char *interface_name) {
+    struct sockaddr_in source_ip;
+    struct sockaddr_in target_ip;
+    unsigned char target_mac[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
+
+    int sock = socket(AF_INET, SOCK_PACKET, htons(ETH_P_ARP));
+    if (sock == -1) {
+        perror("Socket creation failed");
+        exit(EXIT_FAILURE);
+    }
+
+    struct ifreq ifr;
+    strcpy(ifr.ifr_name, interface_name);
+    if (ioctl(sock, SIOCGIFINDEX, &ifr) == -1) {
+        perror("Interface not found");
+        close(sock);
+        exit(EXIT_FAILURE);
+    }
+
+    struct arpreq arp_req;
+    struct sockaddr_in *sin;
+    sin = (struct sockaddr_in *)&ifr.ifr_addr;
+    source_ip.sin_family = AF_INET;
+    source_ip.sin_addr = sin->sin_addr;
+
+    memcpy(arp_req.arp_sha, &source_ip.sin_addr, 4);
+    memcpy(arp_req.arp_spa, &source_ip.sin_addr, 4);
+    memcpy(arp_req.arp_tpa, &target_ip.sin_addr, 4);
+    memcpy(arp_req.arp_tha, target_mac, 6);
+
+    arp_req.arp_flags = ATF_COM;
+    strcpy(arp_req.arp_dev, interface_name);
+
+    if (ioctl(sock, SIOCSARP, &arp_req) == -1) {
+        perror("ARP request failed");
+        close(sock);
+        exit(EXIT_FAILURE);
+    }
+
+    close(sock);
+
+    printf("ARP request sent for IP: %s\n", ip_address);
+}
+
+int main() {
+    const char *ip_address = "192.168.1.1"; // IP address to resolve
+    const char *interface_name = "eth0"; // Interface name
+
+    arp_resolve(ip_address, interface_name);
+
+    return 0;
+}
