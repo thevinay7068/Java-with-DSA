@@ -9,6 +9,7 @@ class Email extends Notification {
 
     @Override
     void send() {
+        super.send();
         System.out.println("Sending Email");
     }
 }
