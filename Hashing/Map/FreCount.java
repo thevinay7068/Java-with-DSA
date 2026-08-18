@@ -1,3 +1,4 @@
+package Hashing.Map;
 import java.util.*;
  public class FreCount {
     public static void main(String[] args) {
